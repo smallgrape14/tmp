@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MNET视频自动播放器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: -1;
+        }
+        
+        .header {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            width: 100%;
+            max-width: 800px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+            letter-spacing: 1px;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto 20px;
+            line-height: 1.6;
+        }
+        
+        .player-container {
+            background: rgba(30, 30, 46, 0.85);
+            border-radius: 16px;
+            padding: 25px;
+            width: 100%;
+            max-width: 800px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .control-panel {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 25px;
+            justify-content: center;
+        }
+        
+        .control-btn {
+            background: linear-gradient(to right, #3498db, #8e44ad);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            flex: 1;
+            min-width: 160px;
+            max-width: 220px;
+        }
+        
+        .control-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 7px 20px rgba(0, 0, 0, 0.4);
+        }
+        
+        .control-btn:active {
+            transform: translateY(1px);
+        }
+        
+        #pauseBtn, #resetBtn {
+            background: linear-gradient(to right, #e74c3c, #c0392b);
+        }
+        
+        .progress-section {
+            margin: 25px 0;
+        }
+        
+        .progress-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .progress-label {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        
+        .progress-bar {
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            width: 100%;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #1abc9c, #2ecc71);
+            border-radius: 10px;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        .timer-section {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .timer {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin: 10px 0;
+            letter-spacing: 1px;
+        }
+        
+        .status-container {
+            padding: 18px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            min-height: 80px;
+            margin: 20px 0;
+        }
+        
+        #status {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            min-height: 60px;
+        }
+        
+        .tips {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            border-left: 4px solid #9b59b6;
+        }
+        
+        .tips h3 {
+            margin-bottom: 10px;
+            color: #9b59b6;
+        }
+        
+        .tips ul {
+            padding-left: 20px;
+        }
+        
+        .tips li {
+            margin: 10px 0;
+            line-height: 1.5;
+        }
+        
+        .video-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .video-count {
+            font-weight: 600;
+        }
+        
+        .current-video {
+            font-weight: 600;
+            color: #f1c40f;
+        }
+        
+        .next-video {
+            font-weight: 600;
+            color: #2ecc71;
+        }
+        
+        .video-list {
+            display: none;
+            margin-top: 30px;
+            max-height: 300px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            width: 100%;
+        }
+        
+        .video-list.show {
+            display: block;
+        }
+        
+        .video-item {
+            padding: 12px;
+            margin: 8px 0;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .video-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(5px);
+        }
+        
+        .video-item.active {
+            background: rgba(52, 152, 219, 0.3);
+            border-left: 4px solid #3498db;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 0.9rem;
+            opacity: 0.7;
+            width: 100%;
+            max-width: 800px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 90%;
+            width: 500px;
+            text-align: center;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.7);
+            position: relative;
+        }
+        
+        .modal h2 {
+            margin-bottom: 20px;
+            color: #fff;
+        }
+        
+        .modal p {
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+        
+        .modal-btn {
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 0 10px;
+            border: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        #confirmBtn {
+            background: linear-gradient(to right, #2ecc71, #1abc9c);
+            color: white;
+        }
+        
+        #cancelBtn {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+        }
+        
+        .modal-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        @media (max-width: 768px) {
+            .header {
+                padding: 10px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .player-container {
+                padding: 20px 15px;
+            }
+            
+            .control-btn {
+                min-width: 140px;
+                padding: 10px 15px;
+                font-size: 1rem;
+            }
+            
+            .timer {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>MNET 视频自动播放器</h1>
+        <p class="subtitle">自动播放所有视频链接 - 每支视频播放10秒后自动返回并播放下一个视频</p>
+    </div>
+    
+    <div class="player-container">
+        <div class="control-panel">
+            <button id="startBtn" class="control-btn">开始自动播放</button>
+            <button id="pauseBtn" class="control-btn">暂停播放</button>
+            <button id="resetBtn" class="control-btn">重置播放器</button>
+            <button id="showListBtn" class="control-btn">查看播放列表</button>
+        </div>
+        
+        <div class="progress-section">
+            <div class="progress-container">
+                <span class="progress-label">播放进度</span>
+                <span class="video-count">视频数: <span id="totalVideos">8</span></span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+        
+        <div class="timer-section">
+            <div>下一视频倒计时</div>
+            <div class="timer" id="timer">00:00</div>
+        </div>
+        
+        <div class="video-info">
+            <div>当前视频: <span id="currentVideoIndex">0</span></div>
+            <div>下一视频: <span id="nextVideoIndex">1</span></div>
+        </div>
+        
+        <div class="status-container">
+            <div id="status">准备就绪。请点击"开始自动播放"按钮启动。</div>
+        </div>
+        
+        <div class="tips">
+            <h3>使用说明</h3>
+            <ul>
+                <li>在Android设备的Chrome浏览器中打开此页面</li>
+                <li>点击"开始自动播放"按钮启动自动化流程</li>
+                <li>每次会打开一个新标签页播放MNET视频</li>
+                <li>视频播放10秒后自动关闭标签页并返回</li>
+                <li>确保手机处于唤醒状态（关闭自动锁屏）</li>
+                <li>确保MNET应用已安装，否则无法正常跳转</li>
+            </ul>
+        </div>
+        
+        <div class="video-list" id="videoList">
+            <h3>视频播放列表</h3>
+            <div class="video-list-content"></div>
+        </div>
+    </div>
+    
+    <div class="modal" id="confirmationModal">
+        <div class="modal-content">
+            <h2>确认开始自动播放</h2>
+            <p>系统即将自动播放所有视频。请确认：</p>
+            <p>• 手机已连接充电器（避免电量耗尽）</p>
+            <p>• 已安装MNET应用程序</p>
+            <p>• 已在手机设置中关闭自动锁屏</p>
+            <button id="confirmBtn" class="modal-btn">确认开始</button>
+            <button id="cancelBtn" class="modal-btn">取消</button>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>MNET视频自动播放器 &copy; 2023 - 所有操作均在浏览器中执行</p>
+    </div>
+
+    <script>
+        // 所有视频链接
+        const videoLinks = [
+            "https://mnetplus.onelink.me/TRa8/eftibvb4?custom_link_value=play%2Fvideo%2F6869614c4863ea53c62af913&si=ivbfphDFE%2B1%2B532iXvncBSHxQ2G1t0LeEMnSyFdbJmiYj52BJA%3D%3D",
+            "https://mnetplus.onelink.me/TRa8/eftibvb4?custom_link_value=play%2Fvideo%2F686638640924501ea5763b78&si=vKfE%2FTTTEvVQv2yeaPTUEQbZJUCZ7F0imlBt7EdtwXtnP7pUVA%3D%3D",
+            "https://mnetplus.onelink.me/TRa8/eftibvb4?custom_link_value=play%2Fvideo%2F685a594308f6b81c4fa4650e&si=q83G0XbDTO1iv2qXStHuFR3EKUKSJ3AunIRUr%2B06QyZJb0DYGA%3D%3D",
+            "https://mnetplus.onelink.me/TRa8/eftibvb4?custom_link_value=play%2Fvideo%2F684b3875cb7cc16c51f94f6d&si=oNb903fkG99FwliFc63LLRvlI0OAP2IRpae3XHxI%2BiLd57vVSA%3D%3D",
+            "https://mnetplus.onelink.me/TRa8/eftibvb4?custom_link_value=play%2Fvideo%2F6869614c4863ea53c62af913&si=rPHe8TfGEoFzyXaRTcbsOyr5FnzsE%2Bf62w5Cd6gU7b2y8HlwrA%3D%3D",
+            "https://mnetplus.onelink.me/TRa8/eftibvb4?custom_link_value=play%2Fvideo%2F6869614c4863ea53c62af913&si=ltHn2STgLPtEwlu%2FU9nZPRnWRl6wiePWKDd%2BJ6F3OFqwjqk%2F%2BA%3D%3D",
+            "https://mnetplus.onelink.me/TRa8/eftibvb4?custom_link_value=play%2Fvideo%2F6869614c4863ea53c62af913&si=66zJwhvWBsRX4AWAQMbKDx3SQ1CTL%2F%2FsMuHPt6PtsHT6BgDtQw%3D%3D",
+            "https://mnetplus.onelink.me/TRa8/eftibvb4?custom_link_value=play%2Fvideo%2F6869614c4863ea53c62af913&si=lOXX0DbhGvJ2yAK8dvLpEjjvB0%2BZM5Lojb6t29ZykRwnUNzrPw%3D%3D"
+        ];
+        
+        // 配置参数
+        const playDuration = 15; // 每个视频播放时间 (秒)
+        let currentIndex = 0;
+        let isPlaying = false;
+        let progressInterval;
+        let timerInterval;
+        let timeLeft = playDuration;
+        let newTab;
+        
+        // DOM元素引用
+        const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const showListBtn = document.getElementById('showListBtn');
+        const statusEl = document.getElementById('status');
+        const timerEl = document.getElementById('timer');
+        const progressFill = document.getElementById('progressFill');
+        const totalVideos = document.getElementById('totalVideos');
+        const currentVideoIndex = document.getElementById('currentVideoIndex');
+        const nextVideoIndex = document.getElementById('nextVideoIndex');
+        const videoList = document.getElementById('videoList');
+        const modal = document.getElementById('confirmationModal');
+        const confirmBtn = document.getElementById('confirmBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const videoListContent = document.querySelector('.video-list-content');
+        
+        // 初始化
+        totalVideos.textContent = videoLinks.length;
+        
+        // 创建播放列表
+        function createVideoList() {
+            videoListContent.innerHTML = '';
+            videoLinks.forEach((link, index) => {
+                const videoItem = document.createElement('div');
+                videoItem.className = 'video-item';
+                videoItem.dataset.index = index;
+                videoItem.textContent = `视频 ${index + 1}: ${link.substring(0, 50)}...`;
+                
+                if (index === currentIndex) {
+                    videoItem.classList.add('active');
+                }
+                
+                videoListContent.appendChild(videoItem);
+            });
+        }
+        
+        // 更新播放进度显示
+        function updateProgress() {
+            const progress = ((currentIndex) / videoLinks.length) * 100;
+            progressFill.style.width = `${progress}%`;
+        }
+        
+        // 更新视频索引显示
+        function updateVideoIndexes() {
+            currentVideoIndex.textContent = currentIndex + 1;
+            nextVideoIndex.textContent = Math.min(currentIndex + 2, videoLinks.length);
+        }
+        
+        // 打开视频链接
+        function playVideo(index) {
+            if (index >= videoLinks.length) {
+                isPlaying = false;
+                statusEl.textContent = '所有视频播放完成！';
+                clearInterval(timerInterval);
+                timerEl.textContent = '已完成';
+                startBtn.disabled = false;
+                pauseBtn.textContent = '暂停播放';
+                return;
+            }
+            
+            currentIndex = index;
+            updateProgress();
+            updateVideoIndexes();
+            
+            // 状态更新
+            statusEl.innerHTML = `正在播放视频 ${index + 1}/${videoLinks.length}...<br>即将打开新标签页播放视频`;
+            
+            // 重设计时器
+            timeLeft = playDuration;
+            timerEl.textContent = formatTime(timeLeft);
+            
+            // 清除之前的计时器
+            clearInterval(timerInterval);
+            
+            // 显示"正在播放"状态
+            const videoItems = document.querySelectorAll('.video-item');
+            videoItems.forEach(item => item.classList.remove('active'));
+            if (videoItems[index]) {
+                videoItems[index].classList.add('active');
+            }
+            
+            // 在短暂的延迟后打开链接
+            setTimeout(() => {
+                statusEl.innerHTML = `正在播放视频 ${index + 1}/${videoLinks.length}<br>请等待...`;
+                
+                // 在手机浏览器中，打开链接会尝试启动应用
+                newTab = window.open(videoLinks[index], '_blank');
+                
+                // 开始倒计时
+                startTimer();
+            }, 1500);
+        }
+        
+        // 倒计时计时器
+        function startTimer() {
+            timeLeft = playDuration;
+            timerEl.textContent = formatTime(timeLeft);
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerEl.textContent = formatTime(timeLeft);
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    closeAndPlayNext();
+                }
+            }, 1000);
+        }
+        
+        // 格式化时间显示 (MM:SS)
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        // 关闭标签页并播放下一个
+        function closeAndPlayNext() {
+            if (newTab) {
+                newTab.close(); // 关闭视频标签页
+                statusEl.innerHTML = `视频播放完成<br>返回播放器，即将播放下一个视频...`;
+            }
+            
+            // 延迟后播放下一个视频
+            setTimeout(() => {
+                playVideo(currentIndex + 1);
+            }, 2000);
+        }
+        
+        // 事件监听器
+        startBtn.addEventListener('click', () => {
+            modal.style.display = 'flex';
+        });
+        
+        confirmBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+            startPlaying();
+        });
+        
+        cancelBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+        
+        pauseBtn.addEventListener('click', () => {
+            if (!isPlaying) return;
+            
+            if (pauseBtn.textContent === '暂停播放') {
+                clearInterval(timerInterval);
+                pauseBtn.textContent = '继续播放';
+                statusEl.innerHTML += '<br>播放已暂停';
+            } else {
+                startTimer();
+                pauseBtn.textContent = '暂停播放';
+                statusEl.innerHTML += '<br>播放已继续';
+            }
+        });
+        
+        resetBtn.addEventListener('click', () => {
+            if (isPlaying) {
+                clearInterval(timerInterval);
+                if (newTab) newTab.close();
+            }
+            
+            isPlaying = false;
+            currentIndex = 0;
+            timeLeft = playDuration;
+            timerEl.textContent = formatTime(timeLeft);
+            statusEl.innerHTML = '播放器已重置<br>准备就绪';
+            startBtn.disabled = false;
+            pauseBtn.textContent = '暂停播放';
+            progressFill.style.width = '0%';
+            updateVideoIndexes();
+            createVideoList();
+        });
+        
+        showListBtn.addEventListener('click', () => {
+            videoList.classList.toggle('show');
+            if (videoList.classList.contains('show')) {
+                createVideoList();
+            }
+        });
+        
+        // 开始播放函数
+        function startPlaying() {
+            isPlaying = true;
+            startBtn.disabled = true;
+            statusEl.textContent = '正在启动自动播放器...';
+            
+            // 短暂延迟后开始播放第一个视频
+            setTimeout(() => {
+                playVideo(currentIndex);
+            }, 1000);
+        }
+        
+        // 初始创建播放列表
+        createVideoList();
+        updateVideoIndexes();
+    </script>
+</body>
+</html>
